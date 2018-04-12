@@ -12,8 +12,6 @@ from flask_sqlalchemy import SQLAlchemy
 import random
 from flask_migrate import Migrate, MigrateCommand # needs: pip/pip3 install flask-migrate
 
-from flask_mail import Mail, Message
-from threading import Thread
 from werkzeug import secure_filename
 
 # Configure base directory of app
@@ -22,40 +20,20 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # Application configurations
 app = Flask(__name__)
 app.debug = True
+app.use_reloader = True
 app.static_folder = 'static'
-app.config['SECRET_KEY'] = 'hardtoguessstringfromsi364thisisnotsupersecurebutitsok'
-# app.config['SQLALCHEMY_DATABASE_URI'] =\
-    # 'sqlite:///' + os.path.join(basedir, 'data.sqlite') # Determining where your database file will be stored, and what it will be called
+app.config['SECRET_KEY'] = 'hard to guess string'
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://localhost/songs_data" # TODO: decide what your new database name will be, and create it in postgresql, before running this new application (it's similar to an old one, but has some more to it)
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Set up email config stuff
-app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
-app.config['MAIL_PORT'] = 587 #default
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') # TODO export to your environs -- may want a new account just for this. It's expecting gmail, not umich
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_SUBJECT_PREFIX'] = '[Songs App]'
-app.config['MAIL_SENDER'] = 'Admin <youremail@example.com>' # TODO fill in email
-app.config['ADMIN'] = os.environ.get('ADMIN') or "Admin <youremail@example.com>"
-
 
 # Set up Flask debug stuff
 manager = Manager(app)
-# moment = Moment(app) # For time # Later
 db = SQLAlchemy(app) # For database use
 migrate = Migrate(app, db) # For database use/updating
 manager.add_command('db', MigrateCommand) # Add migrate command to manager
-mail = Mail(app) # For email sending
 
-
-## Set up Shell context so it's easy to use the shell to debug
-# Define function
-def make_shell_context():
-    return dict( app=app, db=db, Song=Song, Artist=Artist, Album=Album)
-# Add function use to manager
-manager.add_command("shell", Shell(make_context=make_shell_context))
 
 ## You will get the following message when running command to create migration folder:
 ## python main_app.py db init
@@ -66,24 +44,6 @@ manager.add_command("shell", Shell(make_context=make_shell_context))
 #########
 ######### Everything above this line is important/useful setup, not problem-solving.
 #########
-
-##### Functions to send email #####
-
-def send_async_email(app, msg):
-    with app.app_context():
-        mail.send(msg)
-
-def send_email(to, subject, template, **kwargs): # kwargs = 'keyword arguments', this syntax means to unpack any keyword arguments into the function in the invocation...
-    msg = Message(app.config['MAIL_SUBJECT_PREFIX'] + ' ' + subject,
-                  sender=app.config['MAIL_SENDER'], recipients=[to])
-    msg.body = render_template(template + '.txt', **kwargs)
-    msg.html = render_template(template + '.html', **kwargs)
-    thr = Thread(target=send_async_email, args=[app, msg]) # using the async email to make sure the email sending doesn't take up all the "app energy" -- the main thread -- at once
-    thr.start()
-    return thr # The thread being returned
-    # However, if your app sends a LOT of email, it'll be better to set up some additional "queuing" software libraries to handle it. But we don't need to do that yet. Not quite enough users!
-
-
 
 
 ##### Set up Models #####
@@ -198,9 +158,6 @@ def index():
             flash("You've already saved a song with that title!")
         else:
             get_or_create_song(db.session,form.song.data, form.artist.data, form.album.data, form.genre.data)
-            if app.config['ADMIN']:
-                send_email(app.config['ADMIN'], 'New Song',
-                           'mail/new_song', song=form.song.data)
         return redirect(url_for('see_all'))
     return render_template('index.html', form=form,num_songs=num_songs)
 
@@ -218,36 +175,6 @@ def see_all_artists():
     artists = Artist.query.all()
     names = [(a.name, len(Song.query.filter_by(artist_id=a.id).all())) for a in artists]
     return render_template('all_artists.html',artist_names=names)
-
-@app.route('/group1')
-def group1():
-    all_albums = Album.query.all()
-    return render_template('all_albums.html',albums=all_albums)
-
-@app.route('/group2')
-def group2():
-    songs_Rock = Songs.query.filter_by(genre="Rock")
-    return render_template('rock_songs.html',rock_songs=songs_Rock)
-
-@app.route('/group3')
-def group3():
-    artists_albums = []
-    for al in Album.query.all():
-        for artist in al.artists:
-            artists_albums.append(al.name, artist.name)
-    return render_template('artist_albums.html',artists_and_albums=artists_albums)
-
-@app.route('/group4')
-def group4():
-    songs_shakira = Song.query.filter_by(artist_id=get_or_create_artist("Shakira").id)
-    names = [s.name for s in songs_shakira]
-    return render_template('shakira_songs.html',song_names=names)
-
-@app.route('/group5')
-def group5():
-    artist_beethoven = Artist.query.filter_by(name="Beethoven") # If there's no such artist, what's gonna happen? Try and find out! -- What might you want to change in the template to handle different situations?
-    songs_beethoven = Song.query.filter_by(artist_id=artist_beethoven.id)
-    return render_template('beethoven_songs.html',songs_beethoven=songs_beethoven)
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
