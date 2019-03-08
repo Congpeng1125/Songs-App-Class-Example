@@ -1,18 +1,8 @@
 #__author__ == "Jackie Cohen (jczetta)"
 
 import os
-from flask import Flask, render_template, session, redirect, url_for, flash
-from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, FileField
-from wtforms.validators import Required
-from flask_sqlalchemy import SQLAlchemy
-import random
-from flask_migrate import Migrate, MigrateCommand # needs: pip/pip3 install flask-migrate
-
-from werkzeug import secure_filename
-
-# Configure base directory of app
-basedir = os.path.abspath(os.path.dirname(__file__))
+from flask import Flask, render_template, session, redirect, url_for # tools that will make it easier to build on things
+from flask_sqlalchemy import SQLAlchemy # handles database stuff for us - need to pip install flask_sqlalchemy in your virtual env, environment, etc to use this and run this
 
 # Application configurations
 app = Flask(__name__)
@@ -100,7 +90,7 @@ def index():
 
 @app.route('/song/new/<title>/<artist>/<genre>/')
 def new_song(title, artist, genre):
-    if Song.query.filter_by(title=form.song.data).first(): # if there is a song by that title
+    if Song.query.filter_by(title=title).first(): # if there is a song by that title
         return "That song already exists! Go back to the main app!"
     else:
         artist = get_or_create_artist(artist)
@@ -123,12 +113,12 @@ def see_all_artists():
     artists = Artist.query.all()
     names = []
     for a in artists:
-        num_songs = len(Song.query.filter_by(artist_id=a.id).all()))
+        num_songs = len(Song.query.filter_by(artist_id=a.id).all())
         newtup = (a.name,num_songs)
         names.append(newtup) # names will be a list of tuples
     return render_template('all_artists.html',artist_names=names)
 
 
 if __name__ == '__main__':
-    db.create_all()
+    db.create_all() # This will create database in current directory, as set up, if it doesn't exist, but won't overwrite if you restart - so no worries about that
     app.run() # run with this: python main_app.py runserver

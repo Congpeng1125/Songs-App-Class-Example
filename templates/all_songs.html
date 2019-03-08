@@ -8,10 +8,5 @@
 There are no saved favorite songs to show.
 {% endif %}
 
-<div>
-{% for message in get_flashed_messages() %} 
-<strong>*** {{ message }} ***</strong>
-{% endfor %}
-</div>
 
-<a href="{{ url_for('index')}}">Return to add a new song</a>
+<a href="{{ url_for('index')}}">Return to home page</a>
